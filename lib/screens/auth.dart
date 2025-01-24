@@ -1,3 +1,4 @@
+import 'package:chating_app/widgets/user_image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -32,14 +33,12 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _userEmail,
           password: _userPassword,
         );
-        print(userCredential);
       } else {
         final userCredentials =
             await _firebaseAuth.createUserWithEmailAndPassword(
           email: _userEmail,
           password: _userPassword,
         );
-        print(userCredentials);
       }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {}
@@ -81,6 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (!_isLogin) UserImagePicker(),
                           TextFormField(
                             decoration: const InputDecoration(
                               labelText: 'Email',
