@@ -23,6 +23,7 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isuploading = false;
   var _userEmail = '';
   var _userPassword = '';
+  var _username = '';
   File? _selectedImage;
 
   void _submitFrom() async {
@@ -58,11 +59,11 @@ class _AuthScreenState extends State<AuthScreen> {
             .child('${userCredentials.user!.uid}.jpg');
         await storageRef.putFile(_selectedImage!);
         final imageUrl = await storageRef.getDownloadURL();
-        FirebaseFirestore.instance
+        await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredentials.user!.uid)
             .set({
-          'username': 'TODO',
+          'username': _username,
           'email': _userEmail,
           'image_url': imageUrl,
         });
@@ -138,6 +139,24 @@ class _AuthScreenState extends State<AuthScreen> {
                               _userEmail = value!;
                             },
                           ),
+                          if (!_isLogin)
+                            TextFormField(
+                              decoration: const InputDecoration(
+                                labelText: 'Username',
+                              ),
+                              enableSuggestions: false,
+                              validator: (val) {
+                                if (val == null ||
+                                    val.isEmpty ||
+                                    val.trim().length < 4) {
+                                  return 'Enter at least 4 character username';
+                                }
+                                return null;
+                              },
+                              onSaved: (val) {
+                                _username = val!;
+                              },
+                            ),
                           TextFormField(
                             decoration: const InputDecoration(
                               labelText: 'Password',
