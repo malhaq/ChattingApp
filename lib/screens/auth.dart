@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:chating_app/widgets/user_image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 final _firebaseAuth = FirebaseAuth.instance;
@@ -16,8 +20,10 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   var _isLogin = true;
+  var _isuploading = false;
   var _userEmail = '';
   var _userPassword = '';
+  File? _selectedImage;
 
   void _submitFrom() async {
     final isValid = _formKey.currentState!.validate();
@@ -25,9 +31,16 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
+    if (!_isLogin && _selectedImage == null) {
+      return;
+    }
+
     _formKey.currentState!.save();
 
     try {
+      setState(() {
+        _isuploading = true;
+      });
       if (_isLogin) {
         final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
           email: _userEmail,
@@ -39,7 +52,24 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _userEmail,
           password: _userPassword,
         );
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('user_images')
+            .child('${userCredentials.user!.uid}.jpg');
+        await storageRef.putFile(_selectedImage!);
+        final imageUrl = await storageRef.getDownloadURL();
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredentials.user!.uid)
+            .set({
+          'username': 'TODO',
+          'email': _userEmail,
+          'image_url': imageUrl,
+        });
       }
+      setState(() {
+        _isuploading = false;
+      });
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {}
       ScaffoldMessenger.of(context).clearSnackBars();
@@ -48,6 +78,9 @@ class _AuthScreenState extends State<AuthScreen> {
           content: Text(e.message ?? 'An error occurred'),
         ),
       );
+      setState(() {
+        _isuploading = false;
+      });
     }
   }
 
@@ -80,7 +113,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (!_isLogin) UserImagePicker(),
+                          if (!_isLogin)
+                            UserImagePicker(
+                              onPickedImage: (pickedImage) {
+                                _selectedImage = pickedImage;
+                              },
+                            ),
                           TextFormField(
                             decoration: const InputDecoration(
                               labelText: 'Email',
@@ -116,25 +154,28 @@ class _AuthScreenState extends State<AuthScreen> {
                             },
                           ),
                           const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _submitFrom,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
+                          if (_isuploading) const CircularProgressIndicator(),
+                          if (!_isuploading)
+                            ElevatedButton(
+                              onPressed: _submitFrom,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                              ),
+                              child: Text(_isLogin ? 'Login' : 'Signup'),
                             ),
-                            child: Text(_isLogin ? 'Login' : 'Signup'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _isLogin = !_isLogin;
-                              });
-                            },
-                            child: Text(_isLogin
-                                ? 'Create new account'
-                                : 'I already have an account'),
-                          ),
+                          if (!_isuploading)
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isLogin = !_isLogin;
+                                });
+                              },
+                              child: Text(_isLogin
+                                  ? 'Create new account'
+                                  : 'I already have an account'),
+                            ),
                         ],
                       ),
                     ),
